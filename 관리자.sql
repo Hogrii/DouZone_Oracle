@@ -1535,6 +1535,30 @@ select * from copyemp3;
 --------------------------------------------------------------------------------
 -- insert end ------------------------------------------------------------------
 
+-- update
+/*
+update 테이블명 set 컬럼명 = 값, 컬럼명 = 값, 컬럼명 = 값 ... where 조건절
+
+update 테이블명 set 컬럼명 = subquery, where 컬럼명 = subquery
+ */
+ 
+ select * from copyemp;
+ 
+ update copyemp set sal = 0; -- 조건이 없으면 전체를 다 바꿔버린다
+ select * from copyemp;
+ rollback;
+ update copyemp set sal = 1111 where deptno = 20; -- 조건절 update
+ update copyemp set sal = (select sum(sal) from emp); -- sub query update
+ update copyemp set ename = 'AAA', job = 'BBB', hiredate = sysdate, sal = (select sum(sal) from emp) where empno = 7788;
+ select * from copyemp where empno = 7788;
+ commit;
+ -------------------------------------------------------------------------------
+ -- update end------------------------------------------------------------------
+ 
+ 
+ 
+ 
+ 
 
 
 
