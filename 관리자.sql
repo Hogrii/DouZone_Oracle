@@ -1200,10 +1200,103 @@ order by e.deptno asc, e.sal desc;
 -- '사원이름', '관리자번호', '관리자이름'으로 하여 출력하라. SELF JOIN (자기 자신테이블의 컬럼을 참조 하는 경우)
 select e1.empno as 사원번호, e1.ename as 사원이름, e1.mgr as 관리자번호, e2.ename as 관리자이름
 from emp e1 left join emp e2 on e1.mgr = e2.empno;
+----------------------------------------------------------------------------------------------------------
+-- JOIN END ----------------------------------------------------------------------------------------------
 
+-- subquery(서브쿼리) 100page
+-- sql의 꽃 .. 만능 해결사
 
+-- 1. 함수 > 단일 테이블 > 다중 테이블(join, union) > 해결이 안됨 >> subquery로 해결
 
+-- 사원테이블에서 사원들의 평균 월급보다 더 많은 월급을 받는 사원의 사번, 이름, 급여를 출력하세요
+-- 1. 평균 급여
+select avg(sal) from emp;
+select empno, ename, sal from emp where sal > 2073;
 
+-- 2개의 쿼리를 통합(하나의 쿼리로)
+select empno, ename, sal 
+from emp 
+where sal > (select avg(sal) from emp);
+
+-- subquery
+/*
+1. single row subquery : 실행 결과가 단일 컬럼에 단일 로우 값인 경우(한개의 값)
+ex) select sum(sal) from emp; select max(sal) from emp;
+연산자 : =, !=, <, >
+
+2. multi row subquery : 실행 결과가 단일 컬럼에 여러 개의 로우 값인 경우
+ex) select deptno from emp; select sal from emp;
+연산자 : in, not in, any, all
+ALL : sal > 1000 and sal > 40000 and ...
+ANY : sal > 1000 or sal > 40000 or ...
+
+문법)
+1. 괄호 안에 있어야 한다 (select max(sal) from emp)
+2. 단일 컬럼 구성       (select max(sal), min(sal) from emp) 서브쿼리 안돼요 (x)
+3. 서브쿼리가 단독으로 실행 가능
+
+서브 쿼리와 메인 쿼리
+1. 서브 쿼리 실행
+2. 서브쿼리의 결과를 가지고 메인 쿼리 실행
+
+Tip)
+select (subquery) >> scala subquery
+from (subquery)   >> in line view(가상테이블)
+where (subquery)  >> 조건
+https://cafe.naver.com/erpzone?iframe_url=/MyCafeIntro.nhn%3Fclubid=30938434 참고
+ */
+
+-- 사원테이블에서 jones의 급여보다 더 많은 급여를 받는 사원의 사번, 이름, 급여를 출력하세요
+-- jones의 급여를 알고 있어야 해결 가능!
+select sal from emp where ename = 'JONES'; -- single row subquery
+select empno, ename, sal 
+from emp 
+where sal > (select sal from emp where ename = 'JONES');
+
+-- 부서번호가 30번인 사원과 같은 급여를 받는 모든 사원의 정보를 출력하세요
+select sal from emp where deptno = 30;
+select *
+from emp
+where sal in (select sal from emp where deptno = 30);
+-- sal = 1600 or sal = 1250 ...
+
+-- 부서번호가 30번인 사원과 다른 급여를 받는 모든 사원의 정보를 출력하세요
+select *
+from emp
+where sal not in (select sal from emp where deptno = 30);
+-- sal != 1600 and sal != 1250 ... not in : 부정의 and
+
+-- 부하직원이 있는 사원의 사번과 이름을 출력하세요
+select * from emp;
+select mgr from emp;
+select * 
+from emp 
+where empno in (select mgr from emp);
+
+select * 
+from emp 
+where empno not in (select nvl(mgr,0) from emp);
+
+-- king에게 보고하는 즉, 직속상관이 king인 사원의 사번, 이름, 직종, 관리자사번을 출력하세요
+select empno from emp where ename = 'KING';
+select empno, ename, job, mgr 
+from emp 
+where mgr = (select empno from emp where ename = 'KING');
+
+-- 20번 부서의 사원중에서 가장 많은 급여를 받는 사원보다 더 많은 급여를 받는 사원의 사번, 이름, 급여, 부서번호를 출력하세요
+select max(sal) from emp where deptno = 20;
+select empno, ename, sal, deptno from emp where sal > (select max(sal) from emp where deptno = 20);
+
+-- 스칼라 서브 쿼리
+select e.empno, e.ename, e.deptno, (select d.dname from dept d where d.deptno = e.deptno) as dept_name
+from emp e
+where e.sal >= 3000;
+
+-- 자기 부서의 평균 월급보다 더 많은 월급을 받는 사원의 사번, 이름, 부서번호, 부서별 평균월급을 출력하세요
+select e.empno, e.ename, e.deptno, e.sal, e1.avgsal
+from emp e join (select deptno, trunc(avg(sal), 0) as avgsal from emp group by deptno) e1
+on e.deptno = e1.deptno
+where e.sal > e1.avgsal;
 
 
 
