@@ -1064,6 +1064,143 @@ select *
 from s join x
 on s.s1 = x.x1;
 
+select sysdate from dual;
+--------------------------------------------------------------------------
+-- SQL JOIN 문법
+select *
+from m, s, x
+where m.m1 = s.s1 and s.s1 = x.x1;
+
+-- ANSI JOIN 문법
+select *
+from m join s on m.m1 = s.s1
+       join x on s.s1 = x.x1;
+
+-- HR 계정 이동
+show user; -- USER이(가) "HR"입니다.
+select * from employees;
+select * from departments;
+select * from locations;
+
+-- 1. 사번, 이름(lastname), 부서번호, 부서이름을 출력하세요
+select 
+    e.employee_id as 사번, 
+    e.last_name as 이름,
+    e.department_id as 부서번호,
+    d.department_name as 부서이름
+from employees e join departments d on e.department_id = d.department_id;
+-- 총 107명인데 106명만 출력.. >> department_id에 null값을 갖고 있는 사원이 있다..!
+
+-- 2. 사번, 이름(lastname), 부서번호, 부서이름, 지역코드, 도시명을 출력하세요
+select 
+    e.employee_id as 사번,
+    e.last_name as 이름,
+    e.department_id as 부서번호,
+    d.department_name as 부서이름,
+    d.location_id as 지역번호,
+    l.city as 도시명
+from employees e join departments d on e.department_id = d.department_id
+                 join locations l on d.location_id = l.location_id;
+
+-- KOSA 계정 이동
+show user; -- USER이(가) "KOSA"입니다.
+select * from emp;
+select * from salgrade;
+
+-- 사원의 등급(하나의 컬럼으로 매핑이 안된다 >> 컬럼을 2개 사용 >> 비등가 조인(non-equi))
+-- 문법은 등가와 동일(의미만 따짐)
+select e.empno, e.ename, s.grade, e.sal
+from emp e join salgrade s 
+on e.sal between s.losal and s.hisal;
+
+-- outer join(equi 조인이 선행되고 나서 남아있는 데이터를 가져오는 방법)
+-- 1. 주종 관계(주인이 되는 쪽에 남아있는 데이터를 가져오는 방법)
+-- 2. left outer join(왼쪽이 주인)
+-- 2.1 right outer join(오른쪽이 주인)
+-- 2.2 full outer join(left, right >> union)
+
+select *
+from m left outer join s
+on m.m1 = s.s1;
+
+select *
+from m right outer join s
+on m.m1 = s.s1;
+
+select *
+from m full outer join s
+on m.m1 = s.s1;
+
+-- HR 계정 이동
+show user;
+-- 1. 사번, 이름(lastname), 부서번호, 부서이름을 출력하세요
+select 
+    e.employee_id as 사번, 
+    e.last_name as 이름,
+    e.department_id as 부서번호,
+    d.department_name as 부서이름
+from employees e left join departments d on e.department_id = d.department_id;
+-- 총 107명인데 106명만 출력.. >> department_id에 null값을 갖고 있는 사원이 있다..!
+-- outer join을 이용해서 null값을 가진 사원도 데리고 온다
+
+
+-- KOSA 계정으로 이동
+show user;
+
+-- self join(자기 참조) -> 문법(x) -> 의미만 존재 -> 등가조인 문법
+-- 하나의 테이블에 있는 컬럼이 자신의 테이블에 있는 특정 컬럼을 참조하는 경우
+select * from emp;
+-- SMITH 사원의 사수 이름 >> FORD
+-- 사원테이블, 관리자테이블을 따로 만드는 것은 중복 데이터를 만드는 일이다 .. >> 셀프조인이 필요한 상황
+-- 테이블 가명칭을 이용해서 하나의 테이블이 2개, 3개 있는 것처럼 사용할 수 있다.
+select e.empno, e.ename, m.empno, m.ename
+from emp e join emp m
+on e.mgr = m.empno;
+
+-- 총 14명인데 13명만 나온다 >> outer join으로 해결
+select e.empno, e.ename, m.empno, m.ename
+from emp e left join emp m
+on e.mgr = m.empno;
+---------------------------------------------------------------------------------
+-- 1. 사원들의 이름, 부서번호, 부서이름을 출력하라.
+select e.ename, e.deptno, d.dname from emp e join dept d on e.deptno = d.deptno;
+
+-- 2. DALLAS에서 근무하는 사원의 이름, 직위, 부서번호, 부서이름을 출력하라.
+select e.ename, e.job, e.deptno, d.dname from emp e join dept d on e.deptno = d.deptno where d.loc = 'DALLAS';
+
+-- 3. 이름에 'A'가 들어가는 사원들의 이름과 부서이름을 출력하라.
+select e.ename, d.dname from emp e join dept d on e.deptno = d.deptno where e.ename like '%A%';
+
+-- 4. 사원이름과 그 사원이 속한 부서의 부서명, 그리고 월급을 출력하는데 월급이 3000이상인 사원을 출력하라.
+select e.ename, d.dname from emp e join dept d on e.deptno = d.deptno where sal >= 3000;
+
+-- 5. 직위(직종)가 'SALESMAN'인 사원들의 직위와 그 사원이름, 그리고 그 사원이 속한 부서 이름을 출력하라.
+select e.job, e.ename, d.dname from emp e join dept d on e.deptno = d.deptno where job = 'SALESMAN';
+​
+-- 6. 커미션이 책정된 사원들의 사원번호, 이름, 연봉, 연봉+커미션, 급여등급을 출력하되, 각각의 컬럼명을 '사원번호', '사원이름',
+-- '연봉','실급여', '급여등급'으로 하여 출력하라. (비등가 ) 1 : 1 매핑 대는 컬럼이 없다
+select e.empno as 사원번호, e.ename as 사원이름, e.sal*12 as 연봉, e.sal*12+e.comm as 실급여, s.grade as 급여등급
+from emp e join salgrade s on e.sal between s.losal and s.hisal where e.comm is not null;
+​
+-- 7. 부서번호가 10번인 사원들의 부서번호, 부서이름, 사원이름, 월급, 급여등급을 출력하라.
+select e.deptno, d.dname, e.ename, e.sal, s.grade
+from emp e join dept d on e.deptno = d.deptno
+           join salgrade s on e.sal between s.losal and s.hisal
+where e.deptno = 10;
+​
+-- 8. 부서번호가 10번, 20번인 사원들의 부서번호, 부서이름, 사원이름, 월급, 급여등급을 출력하라. 그리고 그 출력된
+-- 결과물을 부서번호가 낮은 순으로, 월급이 높은 순으로 정렬하라.
+select e.deptno, d.dname, e.ename, e.sal, s.grade
+from emp e join dept d on e.deptno = d.deptno
+           join salgrade s on e.sal between s.losal and s.hisal
+where e.deptno in (10, 20)
+order by e.deptno asc, e.sal desc;
+
+-- 9. 사원번호와 사원이름, 그리고 그 사원을 관리하는 관리자의 사원번호와 사원이름을 출력하되 각각의 컬럼명을 '사원번호',
+-- '사원이름', '관리자번호', '관리자이름'으로 하여 출력하라. SELF JOIN (자기 자신테이블의 컬럼을 참조 하는 경우)
+select e1.empno as 사원번호, e1.ename as 사원이름, e1.mgr as 관리자번호, e2.ename as 관리자이름
+from emp e1 left join emp e2 on e1.mgr = e2.empno;
+
 
 
 
