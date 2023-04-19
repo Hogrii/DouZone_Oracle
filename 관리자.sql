@@ -1344,9 +1344,9 @@ from emp
 where deptno in (select d.deptno from emp e join dept d on e.deptno = d.deptno where d.loc = 'DALLAS');
 
 --8. SALES 부서에서 일하는 사원들의 부서번호, 이름, 직업을 출력하라.
-select e.deptno, e.ename, e.job 
-from emp e join dept d on e.deptno = d.deptno 
-where d.dname = 'SALES';
+select deptno, ename, job 
+from emp
+where deptno in (select deptno from dept where dname = 'SALES');
 
 --9. 'KING'에게 보고하는 모든 사원의 이름과 급여를 출력하라
 --king 이 사수인 사람 (mgr 데이터가 king 사번)
@@ -1382,15 +1382,158 @@ where sal not in (select sal from emp where deptno = 30)
     and comm not in (select nvl(comm, 0) from emp where deptno = 30 
     and comm is not null);
 
+---------------------------------------------------------------------------------
+/*
+DDL(데이터 정의어) : [create, alter, drop, trucate], rename, modify
+DML(데이터 조작어) : 트랜잭션을 일으키는 작업 : insert, update, delete
+ex) 개발자 .. 회사 갑자기 .. DB select는 잘되는데 insert, update, delete가 안된다 ..
+    >> log에 write를 수행하는 작업(어떤 놈이 언제 어떤 무슨 기록)
+    >> DISK 기록(log file full) >> log write가 안된다. >> DML 작업을 못한다
+    >> log backup >> log 삭제 >> log write가 된다 >> DML 작업을 시작할 수 있다
+    
+    >> commit 하지 않은 경우 ... >> 실습 예정!
+DQL(데이터 질의어) : select
+DCL(데이터 제어어) : grant, revoke
+TCL(트랜잭션)     : commit, rollback, savepoint(commit, rollback 지점을 정의)
+ */
 
+-- 오라클 insert, update, delete 작업 시 -> 반드시 commit, rollback 처리
+-- Tip) tab, col 테이블 사용하기
+select * from tab; -- 사용자(KOSA)가 가지고 있는 테이블 목록
 
+-- 내가 테이블을 생성.. 그 이름이 있는지 없는지
+select * from tab where tname = 'BOARD';
+select * from tab where tname = 'EMP'; -- 테이블에 대한 정보 출력
+select * from col where tname = 'EMP'; -- 컬럼에 대한 정보 출력
+--------------------------------------------------------------------------------
+-- insert, update, delete 무조건 암기 !!
 
+-- 1. insert
+create table temp(
+    id number primary key, -- id가 not null, unique 하다(회원 ID, 주민번호)
+    name varchar2(20)
+);
+desc temp;
 
+-- 1. 일반적인 insert
+insert into temp(id, name) values(100, '홍길동');
 
+-- commit, rollback 하기 전까지 실반영되지 않는다
+select * from temp;
+commit;
 
+-- 2. 컬럼 목록을 생략하고 insert하는 방법 >> 되도록이면 쓰지 말 것..
+insert into temp values(200, '김유신');
+select * from temp;
+rollback;
 
+-- 3. 문제 .. insert
+insert into temp(name) values ('아무개'); 
+-- ORA-01400: cannot insert NULL into ("KOSA"."TEMP"."ID")
+-- primary key에는 null 안됨
 
+insert into temp(id, name) values(100, '개똥이'); 
+-- ORA-00001: unique constraint (KOSA.SYS_C007000) violated
+-- primary key에는 중복 안됨
 
+insert into temp(id, name) values (200, '정상이');
+select * from temp;
+commit;
+--------------------------------------------------------------------------------
+-- Tip
+-- Sql은 프로그램적 요소가 없음
+-- PL-SQL 변수, 제어문
+
+create table temp2(id varchar2(50));
+desc temp2;
+
+-- PL-SQL
+-- for(int i=1; i<=100; i++){}
+/*
+begin
+    for i in 1..100 loop
+        insert into temp2(id) values('A' || to_char(i));
+    end loop;
+end;
+ */
+ -- 위 코드 블럭 주석처리 안하면 아래 select가 안먹힌다
+select * from temp2;
+
+create table temp3(
+    memberid number(3) not null, -- 3자리 정수 null은 올 수 없다
+    name varchar2(10), -- null을 허용하겠다는 의미
+    regdate date default sysdate --  테이블 기본값 설정(insert 하지 않으면 자동으로 날짜 데이터를 들어가게 하겠다)
+);
+desc temp3;
+
+select sysdate from dual;
+
+-- 1. 정상
+insert into temp3(memberid, name, regdate) values(100, '홍길동', '2023-04-19');
+select * from temp3;
+commit;
+
+-- 2. 날짜 생략
+insert into temp3(memberid, name) values(200, '김유신'); -- regdate에 default로 sysdate가 들어간다
+select * from temp3;
+commit;
+
+-- 3. 컬럼 하나
+insert into temp3(memberid) values(300);
+select * from temp3;
+commit;
+
+-- 4. 오류
+insert into temp3(name) values('나는누구'); 
+-- ORA-01400: cannot insert NULL into ("KOSA"."TEMP3"."MEMBERID")
+-- id에 null값을 넣으려고 시도한다 -> primary key .. null 안됨!
+---------------------------------------------------------------------------------
+-- TIP)
+create table temp4(id number);
+create table temp5(num number);
+
+desc temp4;
+desc temp5;
+
+insert into temp4(id) values(1);
+insert into temp4(id) values(2);
+insert into temp4(id) values(3);
+insert into temp4(id) values(4);
+insert into temp4(id) values(5);
+insert into temp4(id) values(6);
+insert into temp4(id) values(7);
+insert into temp4(id) values(8);
+insert into temp4(id) values(9);
+insert into temp4(id) values(10);
+commit;
+
+select * from temp4;
+
+-- 1. 대량 데이터 삽입하기
+select * from temp5;
+-- temp4 테이블에 있는 모든 데이터를 temp5에 넣고 싶다
+-- insert into 테이블명(컬럼리스트) values(컬럼값) ...
+-- insert into 테이블명(컬럼리스트) select 절 *******
+insert into temp5(num) select id from temp4; -- 대량 데이터 삽입
+select * from temp5;
+commit;
+
+-- 2. 대량 데이터 삽입하기
+-- 데이터를 담을 테이블도 없고 >> 테이블 구조(복제):스키마 + 데이터 삽입
+-- 단, 제약 정보는 복제할 수 없다 !! >> primary key, foreign key, unique key ...
+-- 순수한 데이터 구조 + 데이터만 복사 가능
+create table copyemp as select * from emp;
+select * from copyemp;
+
+create table copyemp2 as select empno, ename, sal from emp where deptno = 30;
+select * from copyemp2;
+
+-- 토막 퀴즈
+-- 틀만(스키마) 복제하고 데이터는 복사하고 싶지는 않아요
+create table copyemp3 as select * from emp where 1=2; -- 거짓조건을 만들면 틀만 만들어줌.. 정확히는 데이터가 안들어감 맞는게 없어서
+select * from copyemp3;
+--------------------------------------------------------------------------------
+-- insert end ------------------------------------------------------------------
 
 
 
