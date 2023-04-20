@@ -1568,8 +1568,35 @@ commit;
 -- delete end ------------------------------------------------------------------
 
 -- regex 과제
-select * from emp;
-select * from emp where regexp_like(hiredate,'^\d{4}\-12\-');
+--주차장 관리 테이블
+create table parking_lot (
+    owner_name varchar2(12),     --소유주 이름
+    car_number varchar2(10),     --차량번호 최대 8자리
+    phone_number varchar2(13),  --핸드폰 번호
+    registration_date date,     --등록일
+    expiration_date date,       --만료일
+    total_payment number(8)     --총결제금액
+);
+
+insert into parking_lot(owner_name, car_number, phone_number, registration_date, expiration_date, total_payment)
+values('홍길동', '82버5012', '010-0183-4241', '2023-03-13 17:28:59', '2023-07-14', 40000);
+insert into parking_lot(owner_name, car_number, phone_number, registration_date, expiration_date, total_payment)
+values('이영희', '123고4819', '010-4334-6958', '2023-02-08 08:00:37', '2023-07-08', 50000);    
+insert into parking_lot(owner_name, car_number, phone_number, registration_date, expiration_date, total_payment)
+values('김철수', '235우9273', '010-7134-1234', '2023-01-19 13:48:51', '2023-07-19', 60000);
+insert into parking_lot(owner_name, car_number, phone_number, registration_date, expiration_date, total_payment)
+values('손흥민', '72너5487', '010-9102-2017', '2023-01-20 19:28:22', '2023-05-20', 40000);
+insert into parking_lot(owner_name, car_number, phone_number, registration_date, expiration_date, total_payment)
+values('박지성', '32리2946', '010-2194-3836', '2023-01-04 15:12:19', '2023-02-04', 10000);
+insert into parking_lot(owner_name, car_number, phone_number, registration_date, expiration_date, total_payment)
+values('김진철', '28시1935', '010-3817-5592', '2023-03-09 10:37:49', '2023-06-09', 30000);
+insert into parking_lot(owner_name, car_number, phone_number, registration_date, expiration_date, total_payment)
+values('마동탁', '55저7139', '010-6192-8120', '2023-02-27 11:50:14', '2023-05-27', 30000);
+commit;
+
+select * from parking_lot;
+
+select * from parking_lot where regexp_like(registration_date,'^\d{4}\-\d{2}\-\d{2}\s\d{2}\:\d{2}\:\d{2}$');
 --------------------------------------------------------------------------------
 /*
 개발자(SQL)
@@ -1661,12 +1688,181 @@ commit;
 select * from vtable2;
 select * from vtable2 where p_bungi = 2;
 
+select * from all_users;
+--------------------------------------------------------------------------------
+-- 테이블 만들고 수정 삭제
+-- 1. 테이블 생성하기
+create table temp6(id number);
+desc temp6;
 
+-- 2. 테이블 생성 후 컬럼 추가
+alter table temp6 add ename varchar2(20);
+desc temp6;
 
+-- 3. 기존 테이블에 있는 컬럼 이름 잘못 표기(ename -> username)
+-- 기존 테이블에 있는 기존 컬럼 이름 바꾸기(rename)
+alter table temp6 rename column ename to username;
+desc temp6;
 
+-- 4. 기존 테이블에 있는 기존 컬럼의 타입 크기 수정(기억하기) modify
+alter table temp6 modify (username varchar2(2000));
+desc temp6;
 
+-- 5. 기존 테이블에 기존 컬럼 삭제
+alter table temp6 drop column username;
+desc temp6;
 
+-- 6. 테이블 전체가 필요 없어요
+-- 6.1 delete 데이터만 삭제
+-- 테이블을 처음 만들면 처음 크기가 설정 >> 데이터를 넣으면 테이블의 크기가 증가
+-- 처음 1M >> 데이터 10만건(insert) >> 100M >> delete 10만건 삭제 >> 테이블의 크기는 100M로 변하지 않는다
 
+-- 테이블(데이터) 삭제(공간의 크기도 줄일 수 없을까~?)
+-- truncate(단점 : where 절 사용을 못함)
+-- 처음 1M >> 데이터 10만건(insert) >> 100M >> truncate table emp >> 테이블의 크기는 1M로 줄어든다 
+-- ** 주로 DB 관리자들이 사용
+
+-- 테이블 삭제
+drop table temp6;
+desc temp6;
+--------------------------------------------------------------------------------
+-- 테이블에 제약 설정하기
+-- page 144
+
+/*
+제약조건 설명
+PRIMARY KEY(PK) : 유일하게 테이블의 각행을 식별(NOT NULL 과 UNIQUE 조건을 만족)
+FOREIGN KEY(FK) : 열과 참조된 열 사이의 외래키 관계를 적용하고 설정합니다.
+UNIQUE key(UK)  : 테이블의 모든 행을 유일하게 하는 값을 가진 열(NULL 을 허용)
+NOT NULL(NN)    : 열은 NULL 값을 포함할 수 없습니다.
+CHECK(CK)       : 참이어야 하는 조건을 지정함(대부분 업무 규칙을 설정)
+
+제약은 아니지만 default sysdate ..
+ */
+
+-- primary key(pk) : not null과 unique 조건 >> null 데이터와 중복값을 허용하지 않겠다, 식별자로써의 역할 수행
+-- 유일값 보장
+-- empno primary key >> where empno = 7788 >> 데이터 1건 보장
+-- pk(주민번호, 회원id, 상품id)
+-- 성능(pk 자동으로 index ..) >> 조회 empno >> 성능 >> index >> 자동생성
+-- pk는 테이블당 1개만 설정이 가능(1개의 의미는 (묶어서)) >> 복합키
+
+-- 언제
+-- 1. create table 생성시 제약 생성
+-- 2. create table 생성 후에 필요에 따라서 추가 (권장) >> alter table emp add constraint ..
+
+-- 제약 확인
+select * from user_constraints where lower(table_name) = 'emp';
+
+create table temp7(
+    -- id number primary key, 권장하지 않는다(제약 이름이 자동으로 설정되기 때문 >> 제약 편집할 때 찾아봐야함..)
+    id number constraints pk_temp7_id primary key, -- 키종류_테이블명_컬럼명 >> 관용, 제약 이름 : pk_temp7_id
+    name varchar2(20) not null, -- 오라클에서는 not null도 제약으로 취급
+    addr varchar2(50)
+);
+desc temp7;
+select * from user_constraints where lower(table_name) = 'temp7'; -- constraint_name, constraint_type, index_name 확인
+
+-- insert into temp7(name, addr) values('홍길동', '서울시 강남구'); -- ORA-01400: cannot insert NULL into ("KOSA"."TEMP7"."ID"), id 값을 생략했기 때문에 값이 입력되지 않는다 >> id가 pk
+insert into temp7(id, name, addr) values(10, '홍길동', '서울시 강남구');
+select * from temp7;
+commit;
+
+-- insert into temp7(id, name, addr) values(10, '야무지개', '서울시 강남구'); -- ORA-00001: unique constraint (KOSA.PK_TEMP7_ID) violated, id 값에 중복값이 입력되지 않는다 >> id가 pk
+
+-- Unique(uk) : 테이블의 모든 행일 유일하게 하는 값을 가진 열(null 허용)
+-- 컬럼 수만큼 생성 가능
+-- null 허용
+-- unique 제약을 걸고 추가적으로 not null >> 여러개
+create table temp8(
+    id number constraints pk_temp8_id primary key,
+    name varchar2(20) not null,
+    jumin nvarchar2(6) constraint uk_temp8_jumin unique,
+    addr varchar2(50)
+);
+desc temp8;
+select * from user_constraints where lower(table_name) = 'temp8'; -- constraint_name, constraint_type, index_name 확인
+
+insert into temp8(id, name, jumin, addr) values(10, '홍길동', '123456', '경기도');
+select * from temp8;
+insert into temp8(id, name, jumin, addr) values(20, '길동', '123456', '서울'); -- ORA-00001: unique constraint (KOSA.UK_TEMP8_JUMIN) violated, jumin 값에 중복값이 입력되지 않는다 >> jumin이 uk
+insert into temp8(id, name, addr) values(20, '길동', '서울'); -- unique는 null을 허락한다
+select * from temp8;
+insert into temp8(id, name, addr) values(30, '순신', '서울'); -- unique는 중복을 허락하지 않지만 null에 대한 중복은 허용한다
+select * from temp8;
+commit;
+-- unique에 not null 추가하기
+-- jumin nvarchar2(6) not null constraint uk_temp8_jumin unique,
+
+-- 테이블 생성 후에 제약 걸기(추천, 권장)
+create table temp9(id number);
+alter table temp9 add constraint pk_temp9_id primary key(id);
+select * from user_constraints where lower(table_name) = 'temp9';
+
+-- 복합키 생성
+-- alter table temp9 add constraint pk_temp9_id primary key(id, num);
+-- 유일한 한개의 row를 출력하려면 >> where id = 100 and num =1; id와 num값을 조건에 모두 적어줘야 유일값을 얻을 수 있다
+
+-- ename 컬럼 추가 후 not null 추가
+alter table temp9 add ename varchar2(50);
+alter table temp9 modify(ename not null);
+desc temp9;
+
+--------------------------------------------------------------------------------
+-- check 제약(업무 규칙 : where 조건을 쓰는 것처럼)
+-- where gender in ('남', '여');
+create table temp10(
+    id number constraint pk_temp10_id primary key,
+    name varchar2(20) not null,
+    jumin char(6) not null constraint uk_temp10_jumin unique,
+    addr varchar2(30),
+    age number constraint ck_temp10_age check(age >= 19) -- where age >= 19;
+);
+select * from user_constraints where lower(table_name) = 'temp10';
+
+insert into temp10(id, name, jumin, addr, age) values(100, '홍길동', '123456', '서울시 강남구', 20);
+select * from temp10;
+insert into temp10(id, name, jumin, addr, age) values(200, '길동', '235678', '서울시 강남구', 18);
+-- ORA-02290: check constraint (KOSA.CK_TEMP10_AGE) violated, check 제약에 걸려서 오류 발생
+commit;
+
+-- Foreign key(fk) : 열과 참조된 열 사이의 외래키 관계를 적용하고 설정합니다.
+-- 참조제약(테이블과 테이블과의 관계 설정)
+create table c_emp as select empno, ename, deptno from emp where 1=2; -- emp 테이블로부터 틀만 가져와서 c_emp 테이블 만들기
+select * from c_emp;
+desc c_emp;
+
+create table c_dept as select deptno, dname from dept where 1=2; -- dept 테이블로부터 틀만 가져와서  c_dept 테이블 만들기
+select * from c_dept;
+desc c_dept;
+-- c_emp 테이블에 있는 deptno 컬럼의 데이터는 c_dept 테이블에 있는 deptno 컬럼에 있는 데이터만 쓰겠다
+-- >> 강제(fk)
+-- alter table c_emp add constraint fk_c_emp_deptno foreign key(deptno) references c_dept(deptno);
+-- A REFERENCES clause in a CREATE/ALTER TABLE statement gives a column-list for which there is no matching unique or primary key constraint in the referenced table.
+-- c_dept 테이블의 deptno 컬럼이 신용이 없다 >> pk, unique가 있어야 참조할 수 있다
+alter table c_dept add constraint pk_c_dept_deptno primary key(deptno); -- deptno에 pk 제약 부여
+alter table c_emp add constraint fk_c_emp_deptno foreign key(deptno) references c_dept(deptno); -- pk 제약이 부여되고 fk 제약 부여
+select * from user_constraints where lower(table_name) = 'c_emp'; -- foreign key constraint_type : R
+select * from user_constraints where lower(table_name) = 'c_dept';
+-- c_emp 테이블의 deptno는 c_dept 테이블의 deptno를 참조하고
+-- c_dept 테이블의 deptno는 c_emp 테이블의 deptno에게 참조를 당합니다
+
+-- 부서
+insert into c_dept(deptno, dname) values(100, '인사팀');
+insert into c_dept(deptno, dname) values(200, '관리팀');
+insert into c_dept(deptno, dname) values(300, '회계팀');
+commit;
+select * from c_dept;
+
+-- 신입사원 입사
+insert into c_emp(empno, ename, deptno) values(1, '신입이', 100);
+select * from c_emp;
+insert into c_emp(empno, ename, deptno) values(2, '아무개', 101); 
+-- ORA-02291: integrity constraint (KOSA.FK_C_EMP_DEPTNO) violated - parent key not found
+-- c_emp의 deptno가 c_dept의 deptno를 참조하고 있기 때문에 c_dept의 deptno에 없는 값이 오면 에러가 발생한다
+commit;
+--------------------------------------------------------------------------------
+-- 제약 END --------------------------------------------------------------------
 
 
 
