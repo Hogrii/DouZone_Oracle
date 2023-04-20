@@ -1864,7 +1864,221 @@ commit;
 --------------------------------------------------------------------------------
 -- 제약 END --------------------------------------------------------------------
 
+-- 개발자 관점에서 fk 살펴보기 --
+-- master - detail 관계
+-- 부모 - 자식 관계
 
+-- c_emp 테이블과 c_dept 테이블은 (관계 fk) >> c_emp(deptno) 컬럼이 c_dept(deptno) 컬럼을 참조
+-- fk 관계 : master(c_dept) - detail(c_emp) >> 화면(부서 출력) >> 부서 번호 클릭 >> 사원 정보 출력
+-- deptno 참조 관계 부모(c_dept) - 자식(c_emp)
+-- 관계 pk를 가지고 있는 쪽(master), fk를 가지고 있는 쪽(detail)
+
+select * from c_dept;
+select * from c_emp;
+-- 1. 위 상황에서 c_emp 테이블에 있는 신입이 삭제할 수 있을까요?
+delete from c_dept where deptno = 100;
+-- ORA-02292: integrity constraint (KOSA.FK_C_EMP_DEPTNO) violated - child record found
+-- c_emp에서 c_dept의 deptno = 100을 참조하고 있기 때문에 삭제할 수 없다.
+
+delete from c_dept where deptno = 200;
+-- c_emp에서 c_dept의 deptno = 200를 참조하지만 사용하는 데이터가 없기 때문에 지워진다.
+
+delete from c_dept where deptno = 100;
+delete from c_emp where empno = 1;
+-- c_emp에서 참조하고 있는 데이터를 삭제하면 된다
+-- 자식(c_emp)부터 삭제하고 부모(c_dept)쪽을 지우면 된다
+commit;
+
+/*
+column datatype [CONSTRAINT constraint_name]
+ REFERENCES table_ name (column1[,column2,..] [ON DELETE CASCADE])
+column datatype,
+. . . . . . . ,
+[CONSTRAINT constraint_name] FOREIGN KEY (column1[,column2,..])
+ REFERENCES table_name (column1[,column2,..] [ON DELETE CASCADE])
+
+ON DELETE CASCADE : 부모 테이블과 생명을 같이 하겠다
+
+alter table c_emp add constraint fk_c_emp_deptno foreign key(deptno) references c_dept(deptno) ON DELETE CASCADE;
+
+delete from c_emp where empno = 1; >> deptno >> 100번
+delete from c_dept where deptno = 100; >> 삭제 안됨(참조하고 있으니까 ..)
+ON DELETE CASCADE를 걸면 삭제가 됨..
+
+부모삭제 >> 참조하고 있는 자식도 삭제
+
+MS-SQL
+ON DELETE CASCADE
+ON UPDATE CASCADE
+ */
+
+create table student(
+    id number constraint pk_student_id primary key,
+    name varchar(20) not null,
+    kor number default 0,
+    eng number default 0,
+    math number default 0,
+    sum number GENERATED ALWAYS as (kor + eng + math) VIRTUAL,
+    avg number GENERATED ALWAYS as ((kor+eng+math)/3) VIRTUAL,
+    department_id varchar(20)
+);
+desc student;
+
+create table department(
+    id varchar(20) constraint pk_department_id primary key,
+    name varchar(20) not null
+);
+desc department;
+
+alter table student add constraint fk_student_department_id foreign key(department_id) references department(id);
+
+select * from user_constraints where lower(table_name) = 'student';
+select * from user_constraints where lower(table_name) = 'department';
+
+insert into student(id, name, kor, eng, math, department_id) values(2, '은비', 80, 90, 100, '10');
+insert into department(id, name) values('10', '공간정보공학');
+insert into department(id, name) values('20', '메카트로공학');
+insert into student(id, name, kor, eng, math, department_id) values(2, '은비', 80, 90, 100, '10');
+insert into student(id, name, kor, eng, math) values(1, '진호', 50, 60, 70, '20');
+insert into student(id, name, department_id) values(3, '이진호', '20');
+
+select s.id as 학번, s.name as 이름, s.sum as 총점, nvl(s.department_id, 0) as 학과코드, d.id as 학과명 from student s join department d on s.department_id = d.id;
+
+select * from student;
+--------------------------------------------------------------------------------
+-- 여기까지 초급 과정 END --------------------------------------------------------
+
+-- 제 12장 VIEW(초중급)
+-- 가상 테이블(subquery >> in line view >> from())
+/*
+CREATE [OR REPLACE] [FORCE | NOFORCE] VIEW view_name [(alias[,alias,...])]
+AS Subquery 
+[WITH CHECK OPTION [CONSTRAINT constraint ]]
+[WITH READ ONLY]
+
+옵션
+OR REPLACE 이미 존재한다면 다시 생성한다.
+FORCE Base Table 유무에 관계없이 VIEW 을 만든다.
+NOFORCE 기본 테이블이 존재할 경우에만 VIEW를 생성한다.
+view_name VIEW의 이름
+Alias Subquery를 통해 선택된 값에 대한 Column명이 된다.
+Subquery SELECT 문장을 기술한다.
+WITH CHECK OPTION VIEW에 의해 액세스 될 수 있는 행만이 입력,갱신될 수 있다. 
+Constraint CHECK OPTON 제약 조건에 대해 지정된 이름이다.
+WITH READ ONLY이 VIEW에서 DML이 수행될 수 없게 한다.
+ */
+
+create view view001 as select * from emp; 
+-- view를 만드는 권한이 없기 때문에 오류가 발생한다
+-- 관리자 >> 다른 사용자 >> KOSA 편집 >> 시스템 권한 >> CREATE ANY VIEW 체크
+-- view001이라는 객체가 생성 되었어요(가상 테이블 >> 쿼리 문장을 가지고 있는 객체)
+-- 이 객체는 테이블'처럼' 사용할 수 있는 객체 >> view001은 테이블이 아니라는 뜻!!
+
+select * from view001;
+select * from view001 where deptno = 20;
+-- view는 (가상 테이블)
+-- 사용법 : 일반 테이블과 동일(select, insert, update, delete)
+-- 단, view가 볼 수 있는 데이터에 한해서만!!
+-- view를 통해 원본 테이블에 insert, update, delete(DML)이 가능한데 .. 가능하다는 것만 알고 넘어가도록 하자
+
+-- view 목적
+-- 1. 개발자의 편의성 : join, subquery 등의 복잡한 쿼리를 미리 생성해두었다가 사용
+-- 2. 쿼리 단순화 : view를 생성해서 join 편리성
+-- 3. DBA 보안 : 원본테이블은 노출하지 않고 view를 만들어서 제공(특정 컬럼을 노출하지 않는다) >> 신입사원한테 급여 테이블을 보여주면 안되니까 ,,
+
+create or replace view v_001 as select empno, ename from emp; -- replace는 덮어버린다!
+select * from v_001;
+
+create or replace view v_emp as select empno, ename, job, hiredate from emp;
+select * from v_emp;
+select * from v_emp where job = 'CLERK';
+
+-- 편리성
+create or replace view v_002 as select e.empno, e.ename, e.deptno, d.dname from emp e join dept d on e.deptno = d.deptno;
+-- 많이 쓰는 컬럼들을 조인해서 새롭게 뷰로 만들어 놓으면 상당히 편리하다
+select * from v_002;
+
+-- 자기 부서의 평균 월급보다 더 많은 월급을 받는 사원의 사번, 이름, 부서번호, 부서별 평균월급을 출력하세요
+select e.empno, e.ename, e.deptno, e.sal, e1.avgsal
+from emp e join (select deptno, trunc(avg(sal), 0) as avgsal from emp group by deptno) e1
+on e.deptno = e1.deptno
+where e.sal > e1.avgsal;
+
+-- 직종별 평균 급여를 볼 수 있는 view
+-- 객체를 drop하지 않는 한 영속적으로 남아 있다..
+create view v_003 as select deptno, trunc(avg(sal), 0) as avgsal from emp group by deptno;
+select * from v_003;
+
+select e.empno, e.ename, e.deptno, e.sal, s.avgsal
+from emp e join v_003 s
+on e.deptno = s.deptno
+where e.sal > s.avgsal;
+
+/*
+view도 나름 테이블(가상) view를 [통해서] view가 볼 수 있는 데이터에 대해서
+DML(insert, update, delete) 가능 ..
+ */
+-- create or replace view v_emp as select empno, ename, job, hiredate from emp;
+select * from v_emp;
+
+update v_emp set sal = 0; -- 불가.. v_emp에는 sal이 없음
+
+update v_emp set job = 'IT';
+-- 실제로는 원본 emp 테이블 데이터 업데이트
+-- 가상 테이블은 원본 테이블의 데이터를 볼 뿐이지 데이터를 갖고 있는 것이 아님..
+select * from emp;
+select * from v_emp;
+rollback;
+
+-- 30번 부서 사원들의 직종, 이름, 월급을 담는 VIEW를 만드는데,
+-- 각각의 컬럼명을 직종, 사원이름, 월급으로 ALIAS를 주고 월급이
+-- 300보다 많은 사원들만 추출하도록 하라
+create or replace view view101 as select job as 직종, ename as 사원이름, sal as 월급 from emp where sal > 300;
+select * from view101;
+
+-- 부서별 평균월급을 담는 VIEW를 만들되, 평균월급이 2000 이상인
+-- 부서만 출력하도록 하라
+create or replace view view102 as select deptno as 부서번호, trunc(avg(sal), 0) as 평균월급 from emp group by deptno having avg(sal) >= 2000;
+select * from view102;
+--------------------------------------------------------------------------------
+-- 기본 Query 끝 ----------------------------------------------------------------
+
+select * from employees;
+select * from departments;
+select * from locations;
+
+-- 국가별로 재직중인 직원 수, 국가별 평균 급여을 출력하세요
+select l.country_id as 국가, count(*) as 직원수, trunc(avg(e.salary), 0) as 평균급여
+from employees e join departments d on e.department_id = d.department_id
+                join locations l on d.location_id = l.location_id
+group by country_id;
+
+
+-- 국가별 평균 급여보다 많은 급여를 받는 직원의 사번, 사원명(first last), 부서명, 국가명을 출력하되
+-- 국가명 기준 오름차순, 사번 기준 오름차순으로 출력하세요
+select e.employee_id as 사번, (e.first_name || ' ' || e.last_name) as 사원명, d.department_name as 부서명, l.country_id as 국가명
+from employees e join departments d on e.department_id = d.department_id
+                join locations l on d.location_id = l.location_id
+                join (select l.country_id, trunc(avg(e.salary) , 0) as 국가별평균급여
+                      from employees e join departments d on e.department_id = d.department_id 
+                                       join locations l on d.location_id = l.location_id group by country_id) e1 on l.country_id = e1.country_id
+where e.salary > e1.국가별평균급여
+order by 국가명 asc, 사번 asc;
+
+-- 각 부서에서 가장 많은 급여를 받는 직원의 이름, 성, 부서 이름 그리고 해당 직원의 급여를 출력하는 쿼리를 작성하세용.
+-- 단, 부서에서 가장 많은 급여를 받는 직원이 여러 명인 경우, 그 중 가장 많은 급여를 받는 직원의 이름순으로 출력해주세용.
+
+select * from employees;
+select * from departments;
+
+select e.last_name as 이름, e.first_name as 성, d.department_name as 부서이름, e.salary as 급여
+from employees e join departments d on e.department_id = d.department_id
+                 join (select department_id, max(salary) as 최고급여 from employees group by department_id) e1 on e.department_id = e1.department_id
+where e.sal = e1.
+
+select department_id, max(salary)
+from employees
+group by department_id;
 
 
 
