@@ -1162,7 +1162,7 @@ select e.empno, e.ename, m.empno, m.ename
 from emp e left join emp m
 on e.mgr = m.empno;
 ---------------------------------------------------------------------------------
--- 1. 사원들의 이름, 부서번호, 부서이름을 출력하라.
+-- 1. 사원들의 이름, 부서번호, 서이름을 출력하라.
 select e.ename, e.deptno, d.dname from emp e join dept d on e.deptno = d.deptno;
 
 -- 2. DALLAS에서 근무하는 사원의 이름, 직위, 부서번호, 부서이름을 출력하라.
@@ -1378,7 +1378,7 @@ where deptno in (select deptno from emp where comm is not null)
 select sal, comm from emp where deptno = 30;
 select ename, sal, comm 
 from emp
-where sal not in (select sal from emp where deptno = 30) 
+where sal not in (select sal from emp where deptno = 30)
     and comm not in (select nvl(comm, 0) from emp where deptno = 30 
     and comm is not null);
 
@@ -1566,6 +1566,112 @@ select * from copyemp where deptno = 20;
 commit;
 --------------------------------------------------------------------------------
 -- delete end ------------------------------------------------------------------
+
+-- regex 과제
+select * from emp;
+select * from emp where regexp_like(hiredate,'^\d{4}\-12\-');
+--------------------------------------------------------------------------------
+/*
+개발자(SQL)
+1. CRUD (create > insert, read > select, update, delete)
+2. APP(JAVA) - 표준(JDBC API) - Oracle
+3. insert, update, delete, select (70%)
+
+하나의 테이블에 대해서 작업가능
+JAVA에서 EMP 테이블에 접근(CRUD)
+APP(JAVA)
+MVC(패턴) >> Model(DTO, DAO, SERVICE) - View(HTML, JSP) - Controller(Servlet) >> 니가 잘하는 것만 해!
+
+DB 작업(DAO) >> EmpDao.java >> DB 연결(CRUD)
+기본적으로 5개의 함수를 생성 ..
+1. 전체 조회 : select * from emp;
+>> public List<Emp> getEmpList() { select * from emp return null; }
+>> List<Emp> >> 데이터 여러건
+2. 조건 조회 : select * from emp where empno = ?;
+>> public Emp getEmpListByEmpno(int empno) { select * from emp where empno = ? return null; }
+>> Emp >> 데이터 1건
+3. 삽입 : insert into emp(..) values(..)
+>> public int insertEmp(Emp emp) { insert into emp(..) values(..) return row; }
+4. 수정 : update emp set .. where ..
+5. 삭제 : delete from emp where ..
+ */
+-- 9장 테이블 생성하기
+-- page 138
+
+-- DDL(create, alter, drop, rename) 테이블(객체) 생성, 수정, 삭제
+select * from tab;
+select * from tab where tname = lower('board'); -- 테이블이 있는지 확인
+
+create table board(
+    boardid number,
+    title nvarchar2(50), -- 영문자 특수 공백 상관없이 50자
+    content nvarchar2(2000), -- 2000자 (4000 byte)
+    regdate date
+);
+desc board; -- 가장 기본적인 정보 확인
+select * from user_tables where lower(table_name) = 'board';
+select * from col where lower(tname) = 'board';
+-- 제약정보 확인하기(필수)
+select * from user_constraints where lower(table_name) = 'board'; -- 제약조건이 없으면 아무것도 출력이 안된다
+select * from user_constraints where lower(table_name) = 'emp'; -- "EMPNO" IS NOT NULL >> empno에는 null이 오면 안되는 제약이 있다
+
+-- oracle 11g >> 실무 >> 가상컬럼(조합컬럼)
+-- 학생 성적 테이블(국어, 영어, 수학)
+-- 합계, 평균 ..
+-- 각각의 점수 변화 >> 평균값도 변화 보장 >> 무결성
+create table vtable(
+    no1 number,
+    no2 number,
+    no3 number GENERATED ALWAYS as (no1 + no2) VIRTUAL
+);
+desc vtable;
+select * from col where lower(tname) = 'vtable'; -- DEFAULTVAL : 'no1 + no2'
+insert into vtable(no1, no2) values(100, 50);
+select * from vtable; -- 100, 50, 150
+-- insert into vtable(no1, no2, no3) values(10, 20, 30);
+-- ORA-54013: INSERT operation disallowed on virtual columns
+-- no3는 가상 컬럼이기 때문에 직접 입력하는 것은 안된다
+
+-- 실무에서 활용되는 코드
+-- 제품정보(입고) : 분기별 데이터 추출(4분기)
+create table vtable2(
+    no number, -- 순번
+    p_code char(4), -- 제품코드(A001, B003)
+    p_date char(8), -- 입고일(20230101)
+    p_qty number, -- 수량
+    p_bungi number(1) GENERATED ALWAYS as ( -- 비정규화 데이터이지만 업무상 사용하기도 한다
+        case 
+            when substr(p_date, 5, 2) in ('01', '02', '03') then 1
+            when substr(p_date, 5, 2) in ('04', '05', '06') then 2
+            when substr(p_date, 5, 2) in ('07', '08', '09') then 3
+            else 4
+        end
+    ) VIRTUAL
+);
+desc vtable2;
+select * from col where lower(tname) = 'vtable2';
+
+insert into vtable2(p_date) values('20220101');
+insert into vtable2(p_date) values('20220522');
+insert into vtable2(p_date) values('20220601');
+insert into vtable2(p_date) values('20221111');
+insert into vtable2(p_date) values('20221201');
+commit;
+
+select * from vtable2;
+select * from vtable2 where p_bungi = 2;
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
