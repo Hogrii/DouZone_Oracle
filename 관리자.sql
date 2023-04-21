@@ -2043,10 +2043,7 @@ select * from view102;
 --------------------------------------------------------------------------------
 -- 기본 Query 끝 ----------------------------------------------------------------
 
-select * from employees;
-select * from departments;
-select * from locations;
-
+-------------------------------- 문제 만들기 ------------------------------------
 -- 국가별로 재직중인 직원 수, 국가별 평균 급여을 출력하세요
 select l.country_id as 국가, count(*) as 직원수, trunc(avg(e.salary), 0) as 평균급여
 from employees e join departments d on e.department_id = d.department_id
@@ -2058,27 +2055,98 @@ group by country_id;
 -- 국가명 기준 오름차순, 사번 기준 오름차순으로 출력하세요
 select e.employee_id as 사번, (e.first_name || ' ' || e.last_name) as 사원명, d.department_name as 부서명, l.country_id as 국가명
 from employees e join departments d on e.department_id = d.department_id
-                join locations l on d.location_id = l.location_id
-                join (select l.country_id, trunc(avg(e.salary) , 0) as 국가별평균급여
-                      from employees e join departments d on e.department_id = d.department_id 
-                                       join locations l on d.location_id = l.location_id group by country_id) e1 on l.country_id = e1.country_id
+                 join locations l on d.location_id = l.location_id
+                 join (select l.country_id, trunc(avg(e.salary) , 0) as 국가별평균급여
+                       from employees e join departments d on e.department_id = d.department_id 
+                                        join locations l on d.location_id = l.location_id group by country_id) e1 on l.country_id = e1.country_id
 where e.salary > e1.국가별평균급여
 order by 국가명 asc, 사번 asc;
 
+
 -- 각 부서에서 가장 많은 급여를 받는 직원의 이름, 성, 부서 이름 그리고 해당 직원의 급여를 출력하는 쿼리를 작성하세용.
 -- 단, 부서에서 가장 많은 급여를 받는 직원이 여러 명인 경우, 그 중 가장 많은 급여를 받는 직원의 이름순으로 출력해주세용.
-
-select * from employees;
-select * from departments;
-
 select e.last_name as 이름, e.first_name as 성, d.department_name as 부서이름, e.salary as 급여
 from employees e join departments d on e.department_id = d.department_id
                  join (select department_id, max(salary) as 최고급여 from employees group by department_id) e1 on e.department_id = e1.department_id
-where e.sal = e1.
+where e.salary = e1.최고급여
+order by 급여 desc, 이름 asc;
 
-select department_id, max(salary)
-from employees
-group by department_id;
+
+-- 직업별로 월급이 높은 사람의 employee_id,last_name,job_id,email,salary,city,country_id 정보를 출력해주세여
+select e.employee_id, e.last_name, e.job_id, e.salary, l.city, l.country_id
+from employees e join departments d on e.department_id = d.department_id
+                 join locations l on d.location_id = l.location_id;
+
+
+-- commission_pct의 값이 있는 직업별로 월급이 가장 많은 사원의 
+-- employee_id, first_name, last_name, job_id, email, salary, city, country_id, 순위를 출력하여라.
+
+
+-- (Q)이번에 회사에서 30, 50부서 중에서 20년 이상 회사를 위해 헌신한 직원에 한해서 이벤트를 할려고한다.
+-- 1. 해당 사항에 있는 직원의 입사일을 년.월.일 순으로만 나오게 해주세요
+-- 2. 축하 케이크에는 직원 이름(풀네임)으로 만들어진 양초를 특수 제작하기 위해서 해당 직원의 전체 이름 길이 수를 알아야된다.
+-- 3. 그리고 추가로 직원이름의 첫글자와 20년동안 일한 부서명의 첫 글자 이니셜을 각각 가져와 명예 뱃지를 특수주문하여 선물을 할려고한다.
+-- 4. 그리고 만들어진 케이스와 뱃지를 자택으로 선물해주기 위해서, 해당 직원이 살고 있는 도시를 알 수 있어야된다. (스칼라 서브커리 사용)
+select 
+    to_char(e.hire_date, 'YYYY-MM-DD') as 입사일,
+    length(e.first_name)+length(e.last_name) as 이름길이,
+    substr(e.first_name, 1, 1) || substr(d.department_name, 1, 1) as 철자,
+    (select l.city
+     from employees e join departments d on e.department_id = d.department_id
+                      join locations l on d.location_id = l.location_id
+     where e.department_id in(30, 50) and trunc((sysdate-e.hire_date)/365, 0) >= 20) as 도시
+from employees e join departments d on(e.department_id = d.department_id)
+where e.department_id in(30, 50) and trunc((sysdate-e.hire_date)/365, 0) >= 20;
+
+------------------------------ 문제 풀이 ----------------------------------------
+-- 4조
+-- 자신의 급여가 부서별 평균 급여보다 많고 이름(firstname+lastname)에 ‘a’가 들어가는 사원들 중 가장 많은 country_ID의 급여 평균을 출력하라.
+select max(avg(t.salary))
+from (select *
+      from employees e join (select department_id, avg(salary) as 부서별평균급여 from employees group by department_id) e1 on e.department_id = e1.department_id
+                       join departments d on e.department_id = d.department_id
+                       join locations l on d.location_id = l.location_id
+      where e.salary > e1.부서별평균급여
+            and (e.first_name like '%a%' or e.last_name like '%a%')) t
+group by t.country_id;
+
+
+-- 2조
+-- 이름(last_name)에 'A'가 속하는 사원이 근무하는 부서의 도시명을 모두 출력하세요.
+select distinct(l.city)
+from employees e join departments d on e.department_id = d.department_id
+                 join locations l on d.location_id = l.location_id
+where e.last_name like '%A%';
+
+
+-- 'Colmenares'(last_name)이 근무하는 부서의 담당 관리자 이름을 출력하세요.
+select e.last_name
+from employees e join departments d on e.department_id = d.department_id
+where e.employee_id = (select d.manager_id
+                      from employees e join departments d on e.department_id = d.department_id
+                      where last_name = 'Colmenares');
+
+
+-- 3조
+-- 근무도시별 평균봉급, 평균근속년수, 사원수를 계산하여,
+-- '도시명', '평균봉급', '평균근속년수', '사원수' column명으로 출력하되
+-- 도시별 평균봉급의 내림차순으로 정렬하시오.
+-- 근속년수를 계산할 때, 현재날짜를 2010년 1월 1일로 가정하고
+-- 근속 12개월마다 근속년수가 1씩 늘어나는 것으로 계산하시오.
+-- 예) 입사일이 2009-09-03인 사원은 근속년수가 0년이다.
+-- 단, 근무부서나 근무지역이 없는 사원은 제외하고, 평균은 반올림하여 소수점 1자리까지 출력하라
+select * from employees;
+select * from departments;
+select * from locations;
+
+select l.city, avg(e.salary)
+from employees e join departments d on e.department_id = d.department_id
+                 join locations l on d.location_id = l.location_id
+group by l.city;
+
+select trunc((months_between('2010-01-01', hire_date)/12), 0) as 근속년수
+from employees;
+--------------------------------------------------------------------------------
 
 
 
