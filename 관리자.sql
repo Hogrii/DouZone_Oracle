@@ -2366,6 +2366,123 @@ where num between 41 and 50;
 --------------------------------------------------------------------------------
 -- 담주 JDBC(JAVA) - MariaDB세팅(기본작업)
 
+show user;
+
+create table dmlemp as select * from emp;
+select * from dmlemp;
+select * from user_constraints where lower(table_name) = 'dmlemp';
+alter table dmlemp add constraints pk_dmlemp_empno primary key(empno);
+select * from dmlemp where deptno = 10;
+
+desc dmlemp;
+--------------------------------------------------------------------------------
+show user; -- USER이(가) "KOSA"입니다.
+
+create table trans_A(
+    num number,
+    name varchar2(20)
+);
+
+create table trans_B(
+    num number constraints pk_trans_B_num primary key,
+    name varchar2(20)
+);
+select * from user_constraints where lower(table_name) = 'trans_b';
+select * from trans_A;
+select * from trans_B;
+
+select * from dept;
+
+select * from emp;
+select * from user_constraints where lower(table_name) = 'emp';
+delete from emp where empno = 3000;
+commit;
+--------------------------------------------------------------------------------
+-- 집계 열 데이터 >> 행 데이터 바꾸기
+-- 기본(decode, case) 사용(장점 표준화)
+-- 11g 버전부터(pivot 이용)
+
+/*
+>> 행을 열로 전환하기
+deptno, cnt
+10      3
+20      5
+30      5
+
+deptno_10  deptno_20  deptno_30
+   3           5         6
+ */
+select deptno, count(*) as cnt fro emp group by deptno order by deptno asc;
+
+select 
+    deptno, 
+    case when deptno = 10 then 1 else 0 end as dept_10,
+    case when deptno = 20 then 1 else 0 end as dept_20,
+    case when deptno = 30 then 1 else 0 end as dept_30
+from emp
+order by 1; -- order by deptno asc
+--------------------------------------------------------------------------------
+select 
+    deptno, 
+    sum(case when deptno = 10 then 1 else 0 end) as dept_10,
+    sum(case when deptno = 20 then 1 else 0 end) as dept_20,
+    sum(case when deptno = 30 then 1 else 0 end) as dept_30
+from emp
+group by deptno;
+-- deptno 컬럼은 의미가 없다
+-- dept_10 컬럼명.. 10번 부서
+
+select 
+    sum(case when deptno = 10 then 1 else 0 end) as dept_10, -- 이름 의미 부여 >> 10번 부서
+    sum(case when deptno = 20 then 1 else 0 end) as dept_20,
+    sum(case when deptno = 30 then 1 else 0 end) as dept_30
+from emp;
+
+select
+    max(case when deptno = 10 then ecount else null end) as dept_10,
+    max(case when deptno = 20 then ecount else null end) as dept_20,
+    max(case when deptno = 30 then ecount else null end) as dept_30
+from (
+        select deptno, count(*) as ecount
+        from emp
+        group by deptno
+     ) x;
+
+/*
+select *
+from (피벗 대상 쿼리문)
+pivot (그룹함수(집계컬럼) for 피벗컬럼 in (피벗컬럼값 as 별칭)
+
+오라클 11g부터 pivot 기능 제공
+ */
+
+-- 통계, 차트 데이터 구현
+-- 직종별, 월별 입사 건수
+select * from emp;
+
+select job, to_char(hiredate, 'FMMM') || '월' as hire_month from emp; -- 월 뽑기
+
+--        1, 2, 3, 4, ..., 12월을 컬럼으로 만들어야 한다
+-- CLERK  0  0  1  2
+-- decode 12개 >> 1~12월
+select *
+from(
+        select job, to_char(hiredate, 'FMMM') || '월' as hire_month from emp
+    )
+pivot(
+        count(*) for hire_month in('1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월')
+     );
+
+-- 직종별, 부서별 급여 합계
+select job, deptno, sum(sal) from emp group by job, deptno order by 1, 2;
+
+select *
+from (select job, deptno, sal from emp)
+pivot (sum(sal) for deptno in ('10' as d10, '20' as d20, '30' as d30));
+
+
+
+
 
 
 
