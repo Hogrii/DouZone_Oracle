@@ -287,7 +287,7 @@ DECLARE
     v_deptno emp.deptno%TYPE;
 BEGIN
   select empno , job ,sal , deptno
-    into v_empno, v_job , v_sal , v_deptno
+    into v_empno, v_job , v_sal , v_deptno -- pl-sql은 변수에 여러개의 row를 담을 수 없다 >> 여러개를 담으면 too_many_rows 오류 발생
   from emp
   where ename = v_name;
   
@@ -301,19 +301,22 @@ BEGIN
   set sal = v_sal
   where deptno=v_deptno;
   
-  DBMS_OUTPUT.PUT_LINE(SQL%ROWCOUNT || '개의 행이 갱신 되었습니다');
+  DBMS_OUTPUT.PUT_LINE(SQL%ROWCOUNT || '개의 행이 갱신 되었습니다'); -- SQL%ROWCOUNT : 시스템 변수
   
   --예외처리
   EXCEPTION
     WHEN NO_DATA_FOUND THEN
        DBMS_OUTPUT.PUT_LINE(v_name || '는 자료가 없습니다');
     WHEN TOO_MANY_ROWS THEN
-       DBMS_OUTPUT.PUT_LINE(v_name || '는 동명 이인입니다');
+       DBMS_OUTPUT.PUT_LINE(v_name || '는 동명 이인입니다'); -- 'SMITH'가 두 명이면 변수에 2개의 ROW가 담기기 때문에 오류가 발생한다
     WHEN OTHERS THEN
        DBMS_OUTPUT.PUT_LINE('기타 에러가 발생했습니다');
 END;
 
+insert into emp(empno, ename) values(5555, 'SMITH');
+
 SELECT * FROM EMP;
+rollback;
 /*
 질의는 하나의 행만 RETURN 해야 합니다. PL/SQL 블록 내의 SELECT 문장은 다음 규칙을
 적용하는 Embedded SQL 의 ANSI 범주에 속합니다. 질의의 결과는 하나의 행만을 RETURN 해
