@@ -98,7 +98,7 @@ BEGIN
     result := v_no1 + v_no2;
     DBMS_OUTPUT.PUT_LINE('result : ' || result);
 END;
---------------------------------------------------------------------------------------- 1일차
+--------------------------------------------------------------------------------------- >> 0425
 --------------------------------------------------------------------------------
 DECLARE
   v_emprow emp%ROWTYPE; 
@@ -317,6 +317,7 @@ insert into emp(empno, ename) values(5555, 'SMITH');
 
 SELECT * FROM EMP;
 rollback;
+
 /*
 질의는 하나의 행만 RETURN 해야 합니다. PL/SQL 블록 내의 SELECT 문장은 다음 규칙을
 적용하는 Embedded SQL 의 ANSI 범주에 속합니다. 질의의 결과는 하나의 행만을 RETURN 해
@@ -329,7 +330,7 @@ rollback;
 
 -- pl-sql 기본 구문  END
 --------------------------------------------------------------------------------
--- cursor , procedure , function , Trigger 고급자원 
+-- cursor , procedure , function , Trigger(트랜잭션을 동반) 고급자원 >> 메모리를 많이 차지 잘못 사용하면 서버 터뜨림
 
 --[ 커서 ]
 --지금까지 집합 단위의 데이터 처리 (전체 row를 대상으로)
@@ -346,15 +347,15 @@ rollback;
 -- 11   김유신  시간직   null   10      100     null
 -- 12   이순신  일용일   null   null    120     10
 
+-- 휴대폰 요금제 결제 처리할 떄.. 명세서 처리할 떄.. 
 
-
-
-
+/*
 최종 출력 (판단의 기준이 : 직종 조건 .. row 단위)
 사번 , 이름 , 이번달 급여총액
 10    홍길동    (월급 :  120 )
 11    김유신    (시간*시간급 : 10 *100)
 12    이순신    (시간급 +식대 : 120+10)
+ */
 
 --정규직
 --월급
@@ -366,13 +367,10 @@ rollback;
 --시간급 + 식대
 
 
---한 행식씩 접근해서 직종을 기준으로 계산방법
-
+--한 행식씩 접근해서 직종을 기준으로 계산방법 >> rs.next() 처리와 비슷
 --if 정규직  > 월급 (총급여)
 --elsif 시간직 > 시간 * 시간급 (총급여)
---elsif 일용직 > 시간급 + 식대 (총급여)
- 
- 
+--elsif 일용직 > 시간급 + 식대 (총급여) 
  
 --SQL CURSOR 의 속성을 사용하여 SQL 문장의 결과를 테스트할 수 있다.
 --[종 류 설 명]
@@ -382,37 +380,36 @@ rollback;
   --SQL%ISOPEN PL/SQL 이 실행된 후에 즉시 암시적 커서를 닫기 때문에 항상 FALSE 로 평가된다.
   
 /*
-   DECLARE
-          CURSOR 커서이름 IS 문자(커서가 실행할 쿼리)
-   BEGIN
-         OPEN 커서이름 (커서가 가지고 있는 쿼리를 실행)
+    DECLARE
+        CURSOR 커서이름 IS 문장(커서가 실행할 쿼리) -- CURSOR도 나름 변수..
+    BEGIN
+        OPEN 커서이름 (커서가 가지고 있는 쿼리를 실행)
              
-         FETCH 커서이름 INTO 변수명들...
-          --커서로 부터 데이터를 읽어서 원하는 변수에 저장
-         CLOSE 커서이름 (커서닫기) 
-   END
-
-
+        FETCH 커서이름 INTO 변수명들... -- 데이터에 접근 >> rs.next()처럼
+        --커서로 부터 데이터를 읽어서 원하는 변수에 저장
+        CLOSE 커서이름 (커서닫기) 자원 해제
+    END
 */
+
 DECLARE
   vempno emp.empno%TYPE;
   vename emp.ename%TYPE;
   vsal   emp.sal%TYPE;
   CURSOR c1  IS select empno,ename,sal from emp where deptno=30;
 BEGIN
-    OPEN c1; --커서가 가지고 있는 문장 실행
-    LOOP  --데이터 row 건수 만큼 반복
+    OPEN c1; -- 커서가 가지고 있는 문장 실행
+    LOOP  -- 데이터 row 건수 만큼 반복
       --Memory
-      /*
-        7499 ALLEN 1600
-        7521 WARD 1250
-        7654 MARTIN 1250
-        7698 BLAKE 2850
-        7844 TURNER 1500
-        7900 JAMES 950
-      */
-      FETCH c1 INTO vempno , vename, vsal;
-      EXIT WHEN c1%NOTFOUND; --더이상 row 가 없으면 탈출
+    /*
+      7499 ALLEN 1600
+      7521 WARD 1250
+      7654 MARTIN 1250
+      7698 BLAKE 2850
+      7844 TURNER 1500
+      7900 JAMES 950
+     */
+    FETCH c1 INTO vempno , vename, vsal; -- rs.next() >> row를 한 줄, 한 줄 확인
+    EXIT WHEN c1%NOTFOUND; -- 더이상 row 가 없으면 탈출
         DBMS_OUTPUT.PUT_LINE(vempno || '-' || vename || '-'|| vsal);
     END LOOP;
     CLOSE c1;
@@ -422,9 +419,8 @@ END;
 --java (for(emp e : emplist){}
 DECLARE
   CURSOR emp_curr IS  select empno ,ename from emp;
-BEGIN
-   
-    FOR emp_record IN emp_curr  --row 단위로 emp_record변수 할당
+BEGIN   
+    FOR emp_record IN emp_curr  -- row 단위로 emp_record 변수에 데이터 할당
     LOOP
       EXIT WHEN  emp_curr%NOTFOUND;
         DBMS_OUTPUT.PUT_LINE(emp_record.empno || '-' || emp_record.ename);
@@ -439,7 +435,7 @@ DECLARE
   vemp emp%ROWTYPE; --Type 정의
   CURSOR emp_curr IS  select empno ,ename from emp;
 BEGIN
-  FOR vemp IN emp_curr  --row 단위로 emp_record변수 할당
+  FOR vemp IN emp_curr  --row 단위로 vemp 변수에 데이터 할당
     LOOP
       EXIT WHEN  emp_curr%NOTFOUND;
       DBMS_OUTPUT.PUT_LINE(vemp.empno || '-' || vemp.ename);
@@ -486,9 +482,7 @@ add totalsum number;
 --부서번호가 10인 사원은 totalsum에 급여 정보만 넣으세요
 --데이터 처리
 --
-insert into CURSOR_TABLE(empno,ename,sal,totalsum)
-select empno , ename , sal , sal+nvl(comm,0)
-from emp where deptno=20;
+insert into CURSOR_TABLE(empno,ename,sal,totalsum) select empno , ename , sal , sal+nvl(comm,0) from emp where deptno=20;
 
 select *  from CURSOR_TABLE;
 commit;
@@ -506,7 +500,7 @@ DECLARE
     FOR vemp IN emp_curr   --row 단위로 emp_record 변수에 할당
     LOOP
         EXIT WHEN emp_curr%NOTFOUND;
-        IF(vemp.deptno = 20) THEN 
+        IF(vemp.deptno = 20) THEN
               result := vemp.sal+nvl(vemp.comm,0);
               insert into cursor_table(empno, ename, sal,deptno,comm,totalsum) 
               values (vemp.empno,vemp.ename, vemp.sal,vemp.deptno,vemp.comm,result);
@@ -520,15 +514,12 @@ DECLARE
      END LOOP;   
   END;
 
+select * from cursor_table order by deptno;
 rollback;
 commit;
 
-
-select * from cursor_table order by deptno;
-
-
 --PL-SQL 트랜잭션 및 예외 처리하기
- DECLARE
+DECLARE
     v_ename emp.ename%TYPE := '&p_ename';
     v_err_code NUMBER;
     v_err_msg VARCHAR2(255);
@@ -536,7 +527,7 @@ select * from cursor_table order by deptno;
           DELETE emp WHERE ename = v_ename;
           
           IF SQL%NOTFOUND THEN
-                 RAISE_APPLICATION_ERROR(-20002,'my no data found'); --사용자가 예외 만들기 (강제 예외 던지기)
+                 RAISE_APPLICATION_ERROR(-20002,'my no data found'); -- 사용자가 예외 만들기 (강제 예외 던지기)
           END IF;
        EXCEPTION 
         WHEN OTHERS THEN
@@ -558,7 +549,7 @@ select *from SYS.USER_CONSTRAINTS where TABLE_NAME ='C_EMP';
 select * from emp where ename ='KING';
 
 delete from c_dept where deptno=300;
-
+commit;
 
 delete from emp where ename='aaa';
 --------------------------------------------------------------------------------
@@ -573,52 +564,52 @@ delete from emp where ename='aaa';
 --자주 사용되는 쿼리를 모듈화 시켜서 객체로 저장하고
 --필요한 시점에 불러(호출) 해서 사용하겠다
 
---sp
---usp
+--sp  >> system procedure
+--usp >> user procedure
 
 create or replace procedure usp_emplist   --create or replace (생성 가능 , 수정 가능)
 is
-  BEGIN
-    update emp
-    set job = 'TTT'
-    where deptno=30;
-  END;
+    BEGIN
+        update emp
+        set job = 'TTT'
+        where deptno=30;
+    END;
+-- emp 테이블에서 deptno가 30인 사람들의 직업을 'TTT'로 만드는 쿼리를 가지고 있는 프로시져가 usp_emplist이다
+-- KOSA >> 프로시저 >> USP_EMPLIST 확인
+-- CURSOR를 프로시저 안에 넣어 놓으면 CURSOR의 비영속적인 단점을 극복 할 수 있다.
 
 --실행방법
-execute usp_emplist;
+execute usp_emplist; -- >> 영속적으로 재사용이 가능하다
 
 select * from emp where deptno=30;
 rollback;
 
 --procedure  장점
---기존 : APP(emp.java > select .... 구문)    ->네트워크 > DB연결 > selet... > DB에
---지금 : APP(emp.java > usp_emplist 구문)    ->네트워크 > DB연결 > usp_emplist > DB에
+--기존 : APP(emp.java > select .... 구문)    -> 네트워크 > DB연결 > selet... > DB에
+--지금 : APP(emp.java > usp_emplist 구문)    -> 네트워크 > DB연결 > usp_emplist > DB에
 
 --1.장점 : 네트워크 트래픽 감소(시간 단축)
---2.장점 : 보안 (네트워크 상에서 ...보안 요소)해결
+--2.장점 : 보안(네트워크 상에서 ...보안 요소) 해결
 
-
---procedure 
---parameter  사용가능
+--procedure는  parameter 사용 가능
 --종류 : INPUT  , OUTPUT
-create or replace procedure usp_update_emp
-(vempno emp.empno%TYPE)
+create or replace procedure usp_update_emp(vempno emp.empno%TYPE) -- () >> input parameter
 is
-  BEGIN
-    update emp
-    set sal = 0
-    where empno = vempno;
-    
-  END;
+    BEGIN
+        update emp
+        set sal = 0
+        where empno = vempno;
+    END;
 --실행방법
-exec usp_update_emp(7788);
+exec usp_update_emp(7788); 
+-- execute를 풀네임으로 써도 되고 exec만 써도 된다
+-- ()의 값을 파라미터로 받아서 사용 가능하다
 
 select * from emp where empno = 7788;
 rollback;
 
 --------------------------------------------------------------------------------
-create or replace procedure usp_getemplist
-(vempno emp.empno%TYPE)
+create or replace procedure usp_getemplist(vempno emp.empno%TYPE)
 is
   --내부에서 사용하는 변수
   vname emp.ename%TYPE;
@@ -635,6 +626,7 @@ is
 
 exec usp_getemplist(7902);
 exec usp_getemplist(7788);
+-------------------------------------------------------------------------------- >> 0426
 --------------------------------------------------------------------------------
 -- procedure  는 parameter  종류 2가지
 --1. input paramter : 사용시 반드시  입력          (IN : 생략하는 default)
