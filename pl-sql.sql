@@ -341,13 +341,12 @@ rollback;
  
 --사원급여테이블(건설회사)
 --정규직 , 일용일 ,시간직 
+-- 휴대폰 요금제 결제 처리할 떄.. 명세서 처리할 떄..
 
 --사번 , 이름 , 직종명 , 월급 , 시간 , 시간급 , 식대
 -- 10   홍길동  정규직   120    null   null     null
 -- 11   김유신  시간직   null   10      100     null
 -- 12   이순신  일용일   null   null    120     10
-
--- 휴대폰 요금제 결제 처리할 떄.. 명세서 처리할 떄.. 
 
 /*
 최종 출력 (판단의 기준이 : 직종 조건 .. row 단위)
@@ -626,14 +625,13 @@ is
 
 exec usp_getemplist(7902);
 exec usp_getemplist(7788);
--------------------------------------------------------------------------------- >> 0426
 --------------------------------------------------------------------------------
 -- procedure  는 parameter  종류 2가지
 --1. input paramter : 사용시 반드시  입력          (IN : 생략하는 default)
 --2. output parmater : 사용시 입력값을 받지 않아요 (OUT)
 create or replace procedure app_get_emplist
 (
-  vempno IN emp.empno%TYPE,
+  vempno IN emp.empno%TYPE, -- vempno emp.empno%TYPE >> default IN
   vename OUT emp.ename%TYPE,
   vsal   OUT emp.sal%TYPE
 )
@@ -650,25 +648,21 @@ DECLARE
   out_ename emp.ename%TYPE;
   out_sal   emp.sal%TYPE;
 BEGIN
-   app_get_emplist(7902,out_ename,out_sal);
+   app_get_emplist(7902,out_ename,out_sal); -- IN에만 parameter가 들어간다
    DBMS_OUTPUT.put_line('출력값 : ' || out_ename || '-' || out_sal);
 END;
-
-
-
 
 
 CREATE OR REPLACE PROCEDURE usp_EmpList
 (
   p_sal IN number,
-  p_cursor OUT SYS_REFCURSOR --APP 사용하기 위한 타입 (한건이상의 데이터 select 내부적으로 cursor 사용
+  p_cursor OUT SYS_REFCURSOR --APP 사용하기 위한 타입 (한건이상의 데이터 select 내부적으로 cursor 사용)
 )
 IS
  BEGIN
      OPEN p_cursor
-     FOR  SELECT empno, ename, sal FROM EMP WHERE sal > p_sal;
+     FOR  SELECT empno, ename, sal FROM EMP WHERE sal > p_sal; -- >> p_cursor가 갖는 값
   END;
-
 
 create table usp_emp
 as
@@ -678,7 +672,6 @@ alter table usp_emp
 add constraint pk_usp_emp_empno primary key(empno);
 
 select * from SYS.USER_CONSTRAINTS where table_name='USP_EMP';
-
 
 
 CREATE OR REPLACE PROCEDURE usp_insert_emp
@@ -701,18 +694,92 @@ CREATE OR REPLACE PROCEDURE usp_insert_emp
 DECLARE
   out_msg varchar2(200);
 BEGIN
-   usp_insert_emp(7902,'홍길동','IT',out_msg);
+   usp_insert_emp(9999,'홍길동','IT',out_msg);
    DBMS_OUTPUT.put_line('출력값 : ' || out_msg);
 END;
+--------------------------------------------------------------------------------
+-- 조별과제 >> 사원 정보 조회 프로시저 만들기
+-- 여러건의 데이터 조회시 JDBC 작업..
+select * from emp;
+-- 교수님 코드
+create or replace procedure usp_getEmpList
+(
+    s_hiredate in varchar2,
+    e_hiredate in varchar2,
+    list_cursor out SYS_REFCURSOR --약속된 ...
+)
+is
+    begin
+        open list_cursor FOR
+        select empno,ename,job,sal , hiredate
+        from emp
+        where hiredate  between to_date(s_hiredate,'YYYY-MM-DD') and to_date(e_hiredate,'YYYY-MM-DD')
+        order by hiredate desc;
+        
+        exception
+        when others then
+            DBMS_OUTPUT.PUT_LINE('SQL ERROR MESSAGE: ' || SQLERRM);
+    end;
+    
+--developer 에서 테스트 
+var out_cursor REFCURSOR
+exec usp_getEmpList('1980-01-01','1983-12-30',:out_cursor)
+print out_cursor;
+
+
+CREATE OR REPLACE PROCEDURE getEmpList
+(
+    start_date IN varchar2,
+    end_date IN varchar2,
+    list_cursor OUT SYS_REFCURSOR -- sys_refcursor >> 메모리에 올라가 있는 형태,, 약속된 표현
+)
+IS
+    BEGIN
+        OPEN list_cursor -- 아래 구문이 참조하는 주소값을 갖는다고 생각하면 편하다 << 어거지이긴함;
+        FOR  
+            SELECT empno, ename, job, sal, hiredate
+            FROM emp
+            WHERE hiredate between to_date(start_date, 'YYYY-MM-DD') and to_date(end_date, 'YYYY-MM-DD') -- cursor가 쓰는 구문
+            ORDER BY hiredtae desc;
+            
+            EXCEPTION
+            WHEN OTHERS THEN
+                DBMS_OUTPUT.PUT_LINE('SQL ERROR MESSAGE: ' || SQLERRM);
+    END;
+
+--developer 에서 테스트 
+var out_cursor REFCURSOR
+exec usp_getEmpList('1980-01-01','1983-12-30',:out_cursor)
+print out_cursor;
+
+/*
+        String proc_call = "{? = call emptest(?)}";
+        
+        // create callable statement
+        cstmt = conn.prepareCall(proc_call);
+
+        // key here is to register the output parameter
+        // of type cursor, execute, then cast it as a ResultSet.
+        cstmt.registerOutParameter(1, OracleTypes.CURSOR);
+        cstmt.setInt(2, 10);  //10번 부서의 데이터만 얻기 위해
+
+        cstmt.executeQuery();
+        rs = (ResultSet)cstmt.getObject(1);
+
+        while(rs.next()) {
+                out.println(rs.getString("ename") + "<br>");
+        }
+*/
+
+--------------------------------------------------------------------------------
 ---------------------기본 procedure END-----------------------------------------
 --[사용자 정의 함수]
 --to_char() , sum() 오라클에서 제공
 --사용자가 직접 필요한 함수를 만들어 사용가능
 --사용방법은 다른 함수사용법과 동일
 --사용자 정의 함수 paramter  정의 , return 값
-create or replace function f_max_sal
-(s_deptno emp.deptno%TYPE)
-return number   -- public int f_max_sal(int deptno) {  return 10}
+create or replace function f_max_sal(s_deptno emp.deptno%TYPE)
+return number   -- public int f_max_sal(int deptno) {  return 10} >> return number -> publid 'int' 요부분
 is
   max_sal emp.sal%TYPE;
 BEGIN
@@ -720,7 +787,8 @@ BEGIN
           into max_sal
       from emp
       where deptno = s_deptno;
-      return max_sal;
+      
+      return max_sal; -- public int f_max_sal(int deptno) {  return 10} >> return max_sal -> return 10; 요부분
 END;
 
 ---
@@ -728,8 +796,7 @@ select * from emp where sal = f_max_sal(10);
 
 select max(sal) , f_max_sal(30) from emp;
 --
-create or replace function f_callname
-(vempno emp.empno%TYPE)
+create or replace function f_callname(vempno emp.empno%TYPE)
 return varchar2 -- public String f_callname() {  String  v_name; return "홍길동"}
 is
   v_name emp.ename%TYPE;
@@ -753,21 +820,20 @@ where empno=7788;
 
 --함수 
 --parmater  사번을 입력받아서 사번에 해당되는 부서이름을 리턴하는 함수
-create or replace function f_get_dname
-(vempno emp.empno%TYPE)
+create or replace function f_get_dname(vempno emp.empno%TYPE)
 return varchar2
 is
     v_dname dept.dname%TYPE;
-  BEGIN
-    select dname
-      into v_dname
-    from dept
-    where deptno = (select deptno from emp where empno=vempno);
-    return v_dname;
-  END;
+    BEGIN
+        select dname
+        into v_dname
+        from dept
+        where deptno = (select deptno from emp where empno=vempno);
+        return v_dname;
+    END;
 
 select empno , ename ,deptno, f_get_dname(empno)
-from emp 
+from emp
 where empno=7788;
 --------------------------function END------------------------------------------
 
@@ -780,10 +846,10 @@ where empno=7788;
 --입고 INSERT (내부적으로 [트랜잭션]이 동작)
 --재고 INSERT
 --위험부담 : lock
- 
- 
+
 --PL/SQL에서의 트리거 역시 방아쇠가 당겨지면 자동으로 총알이 발사되듯이
 --어떠한 이벤트가 발생하면 그에 따라 다른 작업이 자동으로 처리되는 것을 의미한다.
+
 /*
 트리거란 특정 테이블의 데이터에 변경이 가해졌을 때 자동으로 수행되는
 [저장 프로시저]라고 할 수 있다.
@@ -808,13 +874,9 @@ CREATE [OR REPLACE] TRIGGER trigger_name
 trigger_body;
  
 trigger_name TRIGGER 의 식별자
-  BEFORE | AFTER DML 문장이 실행되기 전에 TRIGGER 를 실행할 것인지 실행된
-  후에 TRIGGER 를 실행할 것인지를 정의
-triggering_event 
-TRIGGER 를 실행하는 DML(INSERT,UPDATE,DELETE)문을 기술한다.
- 
+  BEFORE | AFTER DML 문장이 실행되기 전에 TRIGGER 를 실행할 것인지 실행된 후에 TRIGGER 를 실행할 것인지를 정의
+triggering_event TRIGGER 를 실행하는 DML(INSERT,UPDATE,DELETE)문을 기술한다. 
 OF column TRIGGER 가 실행되는 테이블에서 COLUMN 명을 기술한다.
- 
 table_name TRIGGER 가 실행되는 테이블 이름
  
 FOR EACH ROW 이 옵션을 사용하면 
@@ -856,8 +918,7 @@ END;
 
 insert into tri_emp(empno,ename) values(100,'홍길동');
 select * from tri_emp;
-
-
+delete from tri_emp;
 
 create or replace trigger tri_02
 after update on tri_emp
@@ -865,13 +926,10 @@ BEGIN
   DBMS_OUTPUT.PUT_LINE('신입사원 수정');
 END;
 
-
 select * from user_jobs;
-
 
 --테이블에 trigger 정보
 select * from user_triggers where table_name='TRI_EMP';
-
 
 insert into tri_emp values(100,'김유신');
 
@@ -888,21 +946,23 @@ BEGIN
   DBMS_OUTPUT.PUT_LINE('신입사원 삭제');
 END;
 
+-- 트리거 확인 코드
+select * from user_triggers where lower(table_name) = 'tri_emp';
+
 insert into tri_emp values(200,'홍길동');
 update tri_emp set ename='변경' where empno= 200;
 delete from tri_emp where empno=200;
+
 -----------------------------------------------------------------------------
---예제1) 테이블에 INSERT, UPDATE, DELETE 를 할 때 user, 구분(I,U,D), sysdate 를 기록하는 
+--예제1) 테이블에 INSERT, UPDATE, DELETE 를 할 때 user, 구분(I,U,D), sysdate 를 기록하는
 --테이블(emp_audit)에 내용을 저장한다.
---FOR EACH ROW 이 옵션을 사용하면 
+--FOR EACH ROW 이 옵션을 사용하면
 --행 레벨 트리거가 되어 triggering 문장
 --에 의해 영향받은 행에 대해 각각 한번씩 실행하고 사용하지
 --않으면 문장 레벨 트리거가 되어 DML 문장 당 한번만 실행된다.
 
-
 drop sequence emp_audit_tr;
 drop table emp_audit;
-
 
 create sequence emp_audit_tr
  increment by 1
@@ -916,8 +976,8 @@ create table emp_audit(
  e_id number(6) constraint emp_audit_pk primary key,
  e_name varchar2(30),
  e_gubun varchar2(10),
- e_date date);
-
+ e_date date
+);
 
 drop table emp2;
 create table emp2
@@ -925,18 +985,15 @@ as
     select * from emp;
 
 create or replace trigger emp_audit_tr
- after insert or update or delete on emp2
+ after insert or update or delete on emp2 -- 이벤트 3개를 한번에 걸어주는 코드
  --for each row
 begin
- if inserting then
-      insert into emp_audit
-      values(emp_audit_tr.nextval, user, 'inserting', sysdate);
+ if inserting then -- inserting : insert가 되었을 때 >> 예약어
+      insert into emp_audit values(emp_audit_tr.nextval, user, 'inserting', sysdate);
  elsif updating then
-      insert into emp_audit
-      values(emp_audit_tr.nextval, user, 'updating', sysdate);
+      insert into emp_audit values(emp_audit_tr.nextval, user, 'updating', sysdate);
  elsif deleting then
-      insert into emp_audit
-      values(emp_audit_tr.nextval, user, 'deleting', sysdate);
+      insert into emp_audit values(emp_audit_tr.nextval, user, 'deleting', sysdate);
  end if;
 end;
 
@@ -948,11 +1005,11 @@ set deptno = 20
 where deptno = 10;
 
 select * from emp_audit;
-
+delete from emp_audit;
 delete from emp2 where deptno = 20;
 
 select * from emp_audit;
-
+commit;
 rollback;
 
 -- for each row 선언 했을 때(명령어 한 번에 변경된 행만큼 기록된다.)
@@ -983,22 +1040,21 @@ select * from emp_audit;
 drop table emp_audit;
 
 create table emp_audit (
- id number(6) constraint emp_audit_pk primary key,
- name varchar2(30),
- gubun varchar2(10),
- wdate date,
- etc1 varchar2(20),  -- old
- etc2 varchar2(20)   -- new
+     id number(6) constraint emp_audit_pk primary key,
+     name varchar2(30),
+     gubun varchar2(10),
+     wdate date,
+     etc1 varchar2(20),  -- old
+     etc2 varchar2(20)   -- new
 );
-
 
 create or replace trigger emp_audit_tr
  after insert or update or delete on emp2
- for each row
+ for each row -- ROW 단위로 !!
 begin
  if inserting then
       insert into emp_audit
-      values(emp_audit_tr.nextval, user, 'inserting', sysdate, :old.deptno, :new.deptno);
+      values(emp_audit_tr.nextval, user, 'inserting', sysdate, :old.deptno, :new.deptno); -- old(이전에 있던 데이터), new(새로 들어온 데이터)는 가상테이블
  elsif updating then
     insert into emp_audit
     values(emp_audit_tr.nextval, user, 'updating', sysdate, :old.deptno, :new.deptno);
@@ -1007,7 +1063,6 @@ begin
     values(emp_audit_tr.nextval, user, 'deleting', sysdate, :old.deptno, :new.deptno);
  end if;
 end;
-
 
 select* from emp2;
 
@@ -1024,6 +1079,8 @@ select * from emp_audit;
 delete from emp2 where empno=9999;
 select * from emp_audit;
 
+-- old, new를 잘 활용하면 데이터를 추적하기에 용이하다
+
 --------------------------------------------------------------------------------
 --트리거의 활용
 create table tri_order
@@ -1038,12 +1095,13 @@ create table tri_order
 create or replace trigger trigger_order
 before insert on tri_order
 BEGIN
-  IF(to_char(sysdate,'HH24:MM') not between '11:00' and '16:00') THEN
+  IF(to_char(sysdate,'HH24:MM') not between '11:00' and '18:00') THEN
      RAISE_APPLICATION_ERROR(-20002, '허용시간 오류 쉬세요');
   END IF;
 END;
+-- before >> 들어가는 데이터에 대해 확인 할 수 있다, trigger를 먼저 돌림
 
-insert into tri_order values(1,'notebook',sysdate);
+insert into tri_order values(1,'notebook',sysdate); -- trigger가 먼저 돌고 insert가 실행된다
 select * from tri_order;
 commit;
 rollback;
@@ -1097,8 +1155,7 @@ create or replace trigger insert_t_01
 after insert on t_01
 for each row
 BEGIN
-  insert into t_02(no, pname)
-  values(:NEW.no ,:NEW.pname);
+  insert into t_02(no, pname) values(:NEW.no ,:NEW.pname);
 END;
 
 --입고
@@ -1140,6 +1197,6 @@ delete from t_01 where no=1;
 select* from t_01;
 select* from t_02;
 
-commit
+commit;
 --------------------------------------------------------------------------------
 -- 고생했다 토닥 토닥 ---------------------------------------------------------------------
