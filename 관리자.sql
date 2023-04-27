@@ -2621,14 +2621,47 @@ from emp
 where job in ('MANAGER', 'SALESMAN')
 order by job;
 -- 단점은 똑같은 데이터가 반복적으로 출력된다
+--------------------------------------------------------------------------------
+-- JDBC 활용 프로시저 만들기
+create or replace procedure usp_EmpList
+(
+    p_sal IN number,
+    p_cursor OUT SYS_REFCURSOR -- APP에서 데이터를 가져가 사용하기 위해 선언하는 타입
+)
+is
+    begin
+        open p_cursor
+        for select empno, ename, sal from emp where sal > p_sal;
+    end;
 
+    var out_cursor REFCURSOR
+    exec usp_EmpList(2000, :out_cursor)
+    print out_cursor;
 
+create or replace procedure usp_Insert_Emp
+(
+    vempno IN emp.empno%TYPE,
+    vename IN emp.ename%TYPE,
+    vjob IN emp.job%TYPE,
+    p_outmsg OUT varchar2
+)
+is
+    begin
+        insert into emp(empno, ename, job) values(vempno, vename, vjob);
+        commit;
+        p_outmsg := 'success'; -- 할당은 이모티콘
+        EXCEPTION WHEN OTHERS THEN 
+            p_outmsg := SQLERRM; -- oracle이 가지고 있는 오류메시지
+        rollback;
+    end;
+    
+alter table emp add constraint pk_emp_empno primary key(empno);
+select * from user_constraints where lower(table_name) = 'emp';
+select * from emp;
+desc emp
 
-
-
-
-
-
+--------------------------------------------------------------------------------
+-- 정규화
 
 
 
