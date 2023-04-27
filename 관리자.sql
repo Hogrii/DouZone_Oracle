@@ -2481,6 +2481,152 @@ from (select job, deptno, sal from emp)
 pivot (sum(sal) for deptno in ('10' as d10, '20' as d20, '30' as d30));
 
 
+select * from dept;
+select * from user_constraints where lower(table_name) = 'dept';
+-------------------------------------------------------------------------------
+-- Quiz
+select deptno, job, sal from emp;
+
+select *
+from (
+        select deptno, job, sal from emp
+     )
+pivot(sum(sal) for job in('PRESIDENT' as p, 'ANALYST' as a, 'MANAGER' as m, 'SALESMAN' as s, 'CLERK' as c));
+
+-- 동일한 결과 decode 생성
+-- 동일한 결과 case 생성
+select 
+    deptno,
+    sum(case when job = 'PRESIDENT' then sal else null end) as p,
+    sum(case when job = 'ANALYST' then sal else null end) as a,
+    sum(case when job = 'MANAGER' then sal else null end) as m,
+    sum(case when job = 'SALESMAN' then sal else null end) as s,
+    sum(case when job = 'CLERK' then sal else null end) as c
+from emp group by deptno;
+
+--------------------------------------------------------------------------------
+-- 사원테이블에서 부서별 급여합계와 전체 급여합을 출력하세요
+select deptno, sum(sal)
+from emp
+group by deptno
+order by deptno;
+
+select sum(sal) from emp;
+
+select deptno, sum(sal) from emp group by deptno
+union all
+select null, sum(sal) from emp;
+--------------------------------------------------------------------------------
+-- 분석 함수
+-- Rollup, Cube 소개(주로 레포팅, 출력할때 많이 사용 >> OLAP(OnLine Analyst Process)
+-- 다차원 분석 쿼리에 사용(소계를 만드는 방법)
+select job, deptno, sum(sal), count(sal)
+from emp
+group by job, deptno
+order by job, deptno;
+
+select job, sum(sal)
+from emp
+group by rollup(job); -- 나는 직종별 급여의 합도 구하고,, 모든 직종 급여의 합도 구하겠다
+
+select job, deptno, sum(sal)
+from emp
+group by rollup(job, deptno); -- 직종별, 전체 소계 포함
+                              -- rollup의 한계 >> 좌측 컬럼을 기준으로 값을 보여준다.. (= 우측 끝 컬럼부터 연산에서 제외, 따라서 컬럼의 순서가 중요)
+----------------------------------------------------------------------------------------------------------------------------------------
+select job, deptno, sum(sal), count(sal)
+from emp
+group by job, deptno
+order by job, deptno;
+-- 기준 소계 : deptno별 소계, job별 소계, 전체 합 보고 싶음
+
+-- 전체 합
+select null, null, sum(sal)
+from emp
+order by deptno, job;
+
+select deptno, job, sum(sal)
+from emp
+group by deptno, job
+union all
+select deptno, null, sum(sal)
+from emp
+group by deptno
+union all
+select null, job, sum(sal)
+from emp
+group by job
+union all
+select null, null, sum(sal)
+from emp;
+
+-- 복합한 쿼리(union), rollup(모든 컬럼의 집계는 안된다) >> cube >> 모든 컬럼의 소계를 구해준다
+select deptno, job, sum(sal)
+from emp
+group by cube(deptno, job)
+order by deptno, job; -- 부서별 직종의 급여 합, 부서별 급여 합, 직종별 급여 합, 전체 급여 합을 구해준다
+
+--------------------------------------------------------------------------------
+-- 순위 함수
+-- rownum(select 결과에 순번 처리)
+-- rank, dense_rank
+
+-- 순위가 동일한 결과(같은 점수가 여러명)
+select * from emp;
+
+select 
+    ename,
+    sal,
+    rank() over(order by sal desc) as 순위, -- >> 2명이 겹치면 둘 다 2등을 주고 그 다음 등수를 4등으로 준다
+    dense_rank() over(order by sal desc) as 순위2 -- >> 2명이 겹치면 둘 다 2등을 주고 그 다음 등수를 3등으로 준다(등수에 공백이 없음)
+from emp
+order by sal desc;
+
+-- 만약 동률이 나왔다면 기준을 더 만들어서 상세하게 구분지어주면 해결된다
+-- 회사) 포인트 많은 3명에게 선물을 주겠다 >> 6명이 동률이 나왔네~? >> 입사순, 나이순, ... 으로 중복 해결해~
+
+select 
+    ename,
+    sal,
+    comm,
+    hiredate,
+    rank() over(order by sal desc, comm desc, hiredate) as 순위 -- 기준을 추가함으로써 중복되는 순위를 해결한다.. 급여순 >> 커미션순 >> 입사일순
+from emp
+order by sal desc;
+
+-- 조건(그룹안에서 순위 정하기)
+-- A group(1, 2, 3, ...), B group(1, 2, 3, ...)
+select
+    job,
+    ename,
+    sal,
+    comm,
+    rank() over(partition by job order by sal desc, comm desc) as 그룹순위
+from emp
+order by job asc, sal desc, comm desc;
+
+-- 집계 함수(단점 : select절 집계 함수 이외에 나머지 컬럼은 group by절에 묶여야 한다)
+-- in line view(서브쿼리를 사용해서 join
+-- create view 가상테이블 join
+select job, sum(sal), count(sal)
+from emp
+where job in('MANAGER', 'SALESMAN')
+group by job
+order by job;
+
+-- 위 쿼리에서 이름, 사번을 보고싶다..
+-- 해결
+select ename, sal, job, sum(sal) over(partition by job)
+from emp
+where job in ('MANAGER', 'SALESMAN')
+order by job;
+-- 단점은 똑같은 데이터가 반복적으로 출력된다
+
+
+
+
+
+
 
 
 
